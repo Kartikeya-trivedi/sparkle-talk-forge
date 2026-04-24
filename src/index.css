@@ -2,95 +2,102 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
-All colors MUST be HSL.
-*/
+/* Claude.ai-inspired design system. Warm cream, ink black, terracotta accent. All HSL. */
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    /* Warm paper background — Claude's signature cream */
+    --background: 40 33% 96%;
+    --foreground: 30 8% 14%;
 
-    --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --surface: 40 30% 93%;
+    --surface-elevated: 40 40% 98%;
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
+    --card: 40 40% 98%;
+    --card-foreground: 30 8% 14%;
 
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
+    --popover: 40 40% 98%;
+    --popover-foreground: 30 8% 14%;
 
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
+    /* Terracotta — Claude's brand accent */
+    --primary: 16 56% 51%;
+    --primary-foreground: 40 40% 98%;
+    --primary-soft: 16 60% 94%;
 
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    --secondary: 40 22% 88%;
+    --secondary-foreground: 30 8% 14%;
 
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    --muted: 40 20% 90%;
+    --muted-foreground: 30 6% 42%;
 
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
+    --accent: 16 60% 94%;
+    --accent-foreground: 16 56% 35%;
 
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
+    --destructive: 0 70% 50%;
+    --destructive-foreground: 40 40% 98%;
 
-    --radius: 0.5rem;
+    --border: 36 14% 84%;
+    --input: 36 14% 84%;
+    --ring: 16 56% 51%;
 
-    --sidebar-background: 0 0% 98%;
+    --radius: 0.875rem;
 
-    --sidebar-foreground: 240 5.3% 26.1%;
+    /* Chat-specific */
+    --user-bubble: 40 30% 90%;
+    --user-bubble-foreground: 30 8% 14%;
+    --assistant-bg: transparent;
 
-    --sidebar-primary: 240 5.9% 10%;
+    /* Sidebar */
+    --sidebar-background: 40 28% 92%;
+    --sidebar-foreground: 30 8% 22%;
+    --sidebar-primary: 16 56% 51%;
+    --sidebar-primary-foreground: 40 40% 98%;
+    --sidebar-accent: 40 22% 86%;
+    --sidebar-accent-foreground: 30 8% 14%;
+    --sidebar-border: 36 14% 82%;
+    --sidebar-ring: 16 56% 51%;
 
-    --sidebar-primary-foreground: 0 0% 98%;
+    /* Shadows & gradients */
+    --shadow-soft: 0 1px 2px 0 hsl(30 8% 14% / 0.04), 0 1px 3px 0 hsl(30 8% 14% / 0.06);
+    --shadow-elevated: 0 4px 16px -2px hsl(30 8% 14% / 0.08), 0 2px 6px -1px hsl(30 8% 14% / 0.04);
+    --shadow-composer: 0 2px 24px -4px hsl(30 8% 14% / 0.08), 0 1px 3px 0 hsl(30 8% 14% / 0.06);
+    --gradient-fade: linear-gradient(to bottom, hsl(40 33% 96% / 0), hsl(40 33% 96% / 1));
 
-    --sidebar-accent: 240 4.8% 95.9%;
-
-    --sidebar-accent-foreground: 240 5.9% 10%;
-
-    --sidebar-border: 220 13% 91%;
-
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --transition-smooth: cubic-bezier(0.4, 0, 0.2, 1);
   }
 
   .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
-
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
-
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
-
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
-
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --background: 30 8% 10%;
+    --foreground: 40 30% 92%;
+    --surface: 30 8% 13%;
+    --surface-elevated: 30 8% 15%;
+    --card: 30 8% 13%;
+    --card-foreground: 40 30% 92%;
+    --popover: 30 8% 13%;
+    --popover-foreground: 40 30% 92%;
+    --primary: 16 56% 56%;
+    --primary-foreground: 30 8% 10%;
+    --primary-soft: 16 30% 22%;
+    --secondary: 30 8% 18%;
+    --secondary-foreground: 40 30% 92%;
+    --muted: 30 8% 18%;
+    --muted-foreground: 40 10% 64%;
+    --accent: 16 30% 22%;
+    --accent-foreground: 16 56% 70%;
+    --border: 30 8% 22%;
+    --input: 30 8% 22%;
+    --ring: 16 56% 56%;
+    --user-bubble: 30 8% 18%;
+    --user-bubble-foreground: 40 30% 92%;
+    --sidebar-background: 30 8% 8%;
+    --sidebar-foreground: 40 20% 80%;
+    --sidebar-primary: 16 56% 56%;
+    --sidebar-primary-foreground: 30 8% 10%;
+    --sidebar-accent: 30 8% 16%;
+    --sidebar-accent-foreground: 40 30% 92%;
+    --sidebar-border: 30 8% 18%;
+    --sidebar-ring: 16 56% 56%;
+    --gradient-fade: linear-gradient(to bottom, hsl(30 8% 10% / 0), hsl(30 8% 10% / 1));
   }
 }
 
@@ -98,8 +105,90 @@ All colors MUST be HSL.
   * {
     @apply border-border;
   }
-
-  body {
-    @apply bg-background text-foreground;
+  html, body, #root {
+    height: 100%;
   }
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-family: 'Inter Tight', 'Styrene B', system-ui, -apple-system, sans-serif;
+    font-feature-settings: 'ss01', 'cv11';
+  }
+  .font-serif {
+    font-family: 'Source Serif 4', 'Tiempos Headline', 'Copernicus', Georgia, serif;
+    font-feature-settings: 'ss01';
+  }
+  .font-mono {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+  }
+}
+
+@layer components {
+  .prose-claude {
+    @apply text-foreground leading-relaxed;
+  }
+  .prose-claude p { @apply my-3; }
+  .prose-claude p:first-child { @apply mt-0; }
+  .prose-claude p:last-child { @apply mb-0; }
+  .prose-claude h1 { @apply font-serif text-2xl font-medium mt-6 mb-3; }
+  .prose-claude h2 { @apply font-serif text-xl font-medium mt-5 mb-2; }
+  .prose-claude h3 { @apply font-serif text-lg font-medium mt-4 mb-2; }
+  .prose-claude ul { @apply list-disc pl-6 my-3 space-y-1; }
+  .prose-claude ol { @apply list-decimal pl-6 my-3 space-y-1; }
+  .prose-claude code {
+    @apply font-mono text-[0.85em] bg-muted px-1.5 py-0.5 rounded;
+  }
+  .prose-claude pre {
+    @apply font-mono text-sm bg-foreground/[0.04] border border-border rounded-lg p-4 my-4 overflow-x-auto;
+  }
+  .prose-claude pre code {
+    @apply bg-transparent p-0;
+  }
+  .prose-claude a {
+    @apply text-primary underline underline-offset-2 hover:opacity-80;
+  }
+  .prose-claude blockquote {
+    @apply border-l-2 border-primary/40 pl-4 italic text-muted-foreground my-3;
+  }
+  .prose-claude strong { @apply font-semibold; }
+}
+
+@layer utilities {
+  .scrollbar-thin::-webkit-scrollbar { width: 8px; height: 8px; }
+  .scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background: hsl(var(--border));
+    border-radius: 4px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--muted-foreground) / 0.4);
+  }
+
+  .animate-fade-in {
+    animation: fade-in 0.4s var(--transition-smooth) both;
+  }
+  .animate-slide-up {
+    animation: slide-up 0.5s var(--transition-smooth) both;
+  }
+  .animate-blink {
+    animation: blink 1.1s steps(2, start) infinite;
+  }
+  .animate-pulse-soft {
+    animation: pulse-soft 1.6s ease-in-out infinite;
+  }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes slide-up {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes blink {
+  to { opacity: 0; }
+}
+@keyframes pulse-soft {
+  0%, 100% { opacity: 0.4; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.15); }
 }
