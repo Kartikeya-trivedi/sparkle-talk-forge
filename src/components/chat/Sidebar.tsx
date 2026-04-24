@@ -1,5 +1,6 @@
-import { MessageSquarePlus, MessagesSquare, PanelLeftClose, Search, Settings, Sparkles } from "lucide-react";
+import { MessageSquarePlus, MessagesSquare, Moon, PanelLeftClose, Search, Settings, Sparkles, Sun } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useTheme } from "@/lib/theme";
 import type { Conversation } from "@/lib/chatTypes";
 
 interface SidebarProps {
