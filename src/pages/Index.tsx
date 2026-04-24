@@ -106,7 +106,7 @@ const Index = () => {
               </button>
             )}
             <button className="flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm font-medium hover:bg-muted transition-colors">
-              <span className="font-serif">Claude Sonnet 4</span>
+              <span className="font-serif">KT GPT v1</span>
               <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
             </button>
           </div>

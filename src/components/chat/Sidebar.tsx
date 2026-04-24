@@ -23,9 +23,9 @@ export const Sidebar = ({ conversations, activeId, onSelect, onNewChat, open, on
       <div className="flex h-14 items-center justify-between px-3 flex-shrink-0">
         <div className="flex items-center gap-2 pl-1">
           <div className="flex h-7 w-7 items-center justify-center rounded-md bg-primary">
-            <span className="font-serif text-sm font-bold text-primary-foreground">C</span>
+            <span className="font-serif text-[11px] font-bold text-primary-foreground tracking-tight">KT</span>
           </div>
-          <span className="font-serif text-[15px] font-semibold tracking-tight">Claude</span>
+          <span className="font-serif text-[15px] font-semibold tracking-tight">KT GPT</span>
         </div>
         <button
           onClick={onToggle}

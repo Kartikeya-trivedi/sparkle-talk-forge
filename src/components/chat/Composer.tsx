@@ -9,7 +9,7 @@ interface ComposerProps {
   autoFocus?: boolean;
 }
 
-export const Composer = ({ onSend, disabled, placeholder = "Reply to Claude…", autoFocus }: ComposerProps) => {
+export const Composer = ({ onSend, disabled, placeholder = "Reply to KT GPT…", autoFocus }: ComposerProps) => {
   const [value, setValue] = useState("");
   const taRef = useRef<HTMLTextAreaElement>(null);
 
@@ -81,7 +81,7 @@ export const Composer = ({ onSend, disabled, placeholder = "Reply to Claude…",
           </div>
           <div className="flex items-center gap-2">
             <span className="hidden sm:inline text-[11px] text-muted-foreground/70 font-mono">
-              Claude Sonnet 4
+              KT GPT v1
             </span>
             <button
               type="button"
@@ -101,7 +101,7 @@ export const Composer = ({ onSend, disabled, placeholder = "Reply to Claude…",
         </div>
       </div>
       <p className="mt-2 text-center text-[11px] text-muted-foreground/70">
-        Claude can make mistakes. Please double-check responses.
+        KT GPT can make mistakes. Please double-check responses.
       </p>
     </div>
   );

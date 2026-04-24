@@ -32,7 +32,7 @@ export const MessageBubble = ({ message, isStreaming }: MessageBubbleProps) => {
   return (
     <div className="group flex gap-4 animate-fade-in">
       <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-primary/10 ring-1 ring-primary/20">
-        <span className="font-serif text-sm font-semibold text-primary">C</span>
+        <span className="font-serif text-[11px] font-semibold text-primary tracking-tight">KT</span>
       </div>
       <div className="min-w-0 flex-1 pt-1">
         <div className="prose-claude text-[15px]">
