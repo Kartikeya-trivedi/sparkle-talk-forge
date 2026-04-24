@@ -13,6 +13,7 @@ interface SidebarProps {
 }
 
 export const Sidebar = ({ conversations, activeId, onSelect, onNewChat, open, onToggle }: SidebarProps) => {
+  const { theme, toggle } = useTheme();
   return (
     <aside
       className={cn(
@@ -75,7 +76,15 @@ export const Sidebar = ({ conversations, activeId, onSelect, onNewChat, open, on
         )}
       </nav>
 
-      <div className="border-t border-sidebar-border p-3">
+      <div className="border-t border-sidebar-border p-3 space-y-1">
+        <button
+          onClick={toggle}
+          aria-label="Toggle theme"
+          className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-left text-[13px] text-sidebar-foreground hover:bg-sidebar-accent transition-colors"
+        >
+          {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+          <span>{theme === "dark" ? "Light mode" : "Dark mode"}</span>
+        </button>
         <button className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-left text-sm hover:bg-sidebar-accent transition-colors">
           <div className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/15 ring-1 ring-primary/25">
             <span className="text-xs font-semibold text-primary">YO</span>
