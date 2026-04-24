@@ -20,7 +20,7 @@ export const Welcome = ({ onSend }: WelcomeProps) => {
     <div className="mx-auto w-full max-w-3xl px-4 pt-16 pb-8 animate-slide-up">
       <div className="mb-10 flex flex-col items-center text-center">
         <div className="mb-6 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary shadow-[var(--shadow-elevated)]">
-          <span className="font-serif text-2xl font-bold text-primary-foreground">C</span>
+          <span className="font-serif text-xl font-bold text-primary-foreground tracking-tight">KT</span>
         </div>
         <h1 className="font-serif text-[32px] sm:text-[40px] leading-tight font-medium tracking-tight">
           <span className="text-primary">✦</span> {greet}
