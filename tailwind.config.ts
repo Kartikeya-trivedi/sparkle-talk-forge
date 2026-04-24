@@ -13,15 +13,29 @@ export default {
       },
     },
     extend: {
+      fontFamily: {
+        sans: ['Inter Tight', 'Styrene B', 'system-ui', 'sans-serif'],
+        serif: ['Source Serif 4', 'Tiempos Headline', 'Copernicus', 'Georgia', 'serif'],
+        mono: ['JetBrains Mono', 'ui-monospace', 'monospace'],
+      },
       colors: {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",
         background: "hsl(var(--background))",
         foreground: "hsl(var(--foreground))",
+        surface: {
+          DEFAULT: "hsl(var(--surface))",
+          elevated: "hsl(var(--surface-elevated))",
+        },
+        "user-bubble": {
+          DEFAULT: "hsl(var(--user-bubble))",
+          foreground: "hsl(var(--user-bubble-foreground))",
+        },
         primary: {
           DEFAULT: "hsl(var(--primary))",
           foreground: "hsl(var(--primary-foreground))",
+          soft: "hsl(var(--primary-soft))",
         },
         secondary: {
           DEFAULT: "hsl(var(--secondary))",
