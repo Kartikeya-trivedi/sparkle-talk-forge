@@ -5,6 +5,7 @@ export interface Message {
   role: Role;
   content: string;
   createdAt: number;
+  source?: string;  // retrieved context chunk used (if any)
 }
 
 export interface Conversation {

@@ -7,10 +7,16 @@ import { type Conversation, type Message, newId, titleFromMessage } from "@/lib/
 import { getMockResponse, streamMockResponse } from "@/lib/mockLlm";
 import { useTheme } from "@/lib/theme";
 
+interface UploadedDoc {
+  filename: string;
+  sentences: number;
+}
+
 const Index = () => {
   const { theme, toggle } = useTheme();
   const [conversation, setConversation] = useState<Conversation | null>(null);
   const [streaming, setStreaming] = useState(false);
+  const [uploadedDocs, setUploadedDocs] = useState<UploadedDoc[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
 
@@ -24,9 +30,16 @@ const Index = () => {
     abortRef.current?.abort();
     setStreaming(false);
     setConversation(null);
+    setUploadedDocs([]);
+    // Clear docs on the server too
+    fetch("/api/clear", { method: "POST" }).catch(() => {});
   };
 
-  const handleSend = async (text: string) => {
+  const handleFileUpload = (doc: UploadedDoc) => {
+    setUploadedDocs((prev) => [...prev, doc]);
+  };
+
+  const handleSend = async (text: string, webSearch?: boolean) => {
     if (streaming) return;
 
     const userMsg: Message = { id: newId(), role: "user", content: text, createdAt: Date.now() };
@@ -48,26 +61,47 @@ const Index = () => {
     const ctrl = new AbortController();
     abortRef.current = ctrl;
 
-    const response = getMockResponse();
-    await new Promise((r) => setTimeout(r, 350));
+    try {
+      const res = await fetch("/api", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ context: "", question: text, use_web_search: !!webSearch }),
+        signal: ctrl.signal,
+      });
 
-    await streamMockResponse(
-      response,
-      (chunk) => {
+      if (!res.ok) throw new Error("Failed to fetch response");
+      
+      const data = await res.json();
+      const realResponseText = data.response || "No response received.";
+
+      await streamMockResponse(
+        realResponseText,
+        (chunk) => {
+          setConversation((prev) => {
+            if (!prev) return prev;
+            const msgs = prev.messages.slice();
+            const last = msgs[msgs.length - 1];
+            if (last?.role === "assistant") {
+              msgs[msgs.length - 1] = { ...last, content: last.content + chunk };
+            }
+            return { ...prev, messages: msgs };
+          });
+        },
+        ctrl.signal
+      );
+    } catch (error: any) {
+      if (error.name !== "AbortError") {
+        console.error("Inference Error:", error);
         setConversation((prev) => {
           if (!prev) return prev;
           const msgs = prev.messages.slice();
-          const last = msgs[msgs.length - 1];
-          if (last?.role === "assistant") {
-            msgs[msgs.length - 1] = { ...last, content: last.content + chunk };
-          }
+          msgs[msgs.length - 1] = { ...msgs[msgs.length - 1], content: "⚠️ Sorry, there was an error connecting to the model." };
           return { ...prev, messages: msgs };
         });
-      },
-      ctrl.signal
-    );
-
-    setStreaming(false);
+      }
+    } finally {
+      setStreaming(false);
+    }
   };
 
   return (
@@ -111,7 +145,7 @@ const Index = () => {
         {/* Chat body */}
         {!conversation ? (
           <div ref={scrollRef} className="flex-1 overflow-y-auto scrollbar-thin">
-            <Welcome onSend={handleSend} />
+            <Welcome onSend={handleSend} uploadedDocs={uploadedDocs} onFileUpload={handleFileUpload} />
           </div>
         ) : (
           <>
@@ -130,7 +164,12 @@ const Index = () => {
               <div className="h-12 bg-[var(--gradient-fade)]" />
               <div className="pointer-events-auto bg-background pb-4 pt-2">
                 <div className="mx-auto w-full max-w-3xl px-4">
-                  <Composer onSend={handleSend} disabled={streaming} />
+                  <Composer
+                    onSend={handleSend}
+                    disabled={streaming}
+                    uploadedDocs={uploadedDocs}
+                    onFileUpload={handleFileUpload}
+                  />
                 </div>
               </div>
             </div>

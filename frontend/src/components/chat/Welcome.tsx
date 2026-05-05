@@ -2,8 +2,15 @@ import { useEffect, useRef, useState } from "react";
 import { ChevronDown, FileText, Lightbulb, Pencil, Sparkles } from "lucide-react";
 import { Composer } from "./Composer";
 
+interface UploadedDoc {
+  filename: string;
+  sentences: number;
+}
+
 interface WelcomeProps {
-  onSend: (text: string) => void;
+  onSend: (text: string, webSearch?: boolean) => void;
+  uploadedDocs?: UploadedDoc[];
+  onFileUpload?: (doc: UploadedDoc) => void;
 }
 
 const SUGGESTIONS = [
@@ -45,7 +52,7 @@ const pickGreeting = () => {
   return pool[Math.floor(Math.random() * pool.length)];
 };
 
-export const Welcome = ({ onSend }: WelcomeProps) => {
+export const Welcome = ({ onSend, uploadedDocs, onFileUpload }: WelcomeProps) => {
   const [greeting] = useState(pickGreeting);
   const [shown, setShown] = useState("");
   const startedRef = useRef(false);
@@ -88,7 +95,7 @@ export const Welcome = ({ onSend }: WelcomeProps) => {
         <p className="mt-3 text-base text-muted-foreground">How can I help you today?</p>
       </div>
 
-      <Composer onSend={onSend} placeholder="How can I help you today?" autoFocus />
+      <Composer onSend={onSend} placeholder="How can I help you today?" autoFocus uploadedDocs={uploadedDocs} onFileUpload={onFileUpload} />
 
       <div className="mt-8 flex flex-wrap items-center justify-center gap-2">
         {SUGGESTIONS.map((s) => (
