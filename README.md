@@ -4,61 +4,119 @@
 [![React](https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)](https://react.dev)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white)](https://tailwindcss.com)
 [![Modal](https://img.shields.io/badge/Modal_Serverless-000000?style=for-the-badge&logo=cloud&logoColor=cyan)](https://modal.com)
-[![ChromaDB](https://img.shields.io/badge/ChromaDB-FF6F61?style=for-the-badge&logo=databricks&logoColor=white)](https://www.trychroma.com)
+[![Qdrant](https://img.shields.io/badge/Qdrant-FF4081?style=for-the-badge&logo=databricks&logoColor=white)](https://qdrant.tech)
 [![PyTorch](https://img.shields.io/badge/PyTorch-EE4C2C?style=for-the-badge&logo=pytorch&logoColor=white)](https://pytorch.org)
+[![vLLM](https://img.shields.io/badge/vLLM-6C47FF?style=for-the-badge&logo=lightning&logoColor=white)](https://vllm.ai)
+[![Redis](https://img.shields.io/badge/Redis-DC382D?style=for-the-badge&logo=redis&logoColor=white)](https://redis.io)
 
-> **Sparkle Talk Forge (KTGPT Chat)** is a state-of-the-art, context-grounded LLM chat platform. Driven by a custom-trained **Mixture of Experts (MoE)** model, it integrates an advanced, sentence-level **Retrieval-Augmented Generation (RAG)** pipeline and real-time **Web Search** grounders to deliver lightning-fast, zero-hallucination responses.
+> **Sparkle Talk Forge (KTGPT Chat)** is a production-grade, context-grounded LLM chat platform. Powered by a **cost-aware dual-model inference engine** (Gemma 4 26B + Llama 3.1 8B via vLLM), it combines **hybrid BM25 + dense vector retrieval**, **semantic query caching**, and **NLI faithfulness verification** to deliver fast, accurate, hallucination-resistant responses.
 
 ---
 
-## 🧭 System Architecture & Data Flow
+## 🆚 v1 → v2: What Changed
 
-Below is the complete architectural layout of KTGPT. It describes how user prompts, document uploads, and web searches flow between the **Vite + React Client**, the **FastAPI ASGI Serverless Layer (Modal)**, the **ChromaDB Vector Pipeline**, and the **KTGPT MoE Model**.
+| Capability | v1 (KTGPT MoE) | v2 (Production RAG) |
+| :--- | :--- | :--- |
+| **Inference Model** | Custom KTGPT MoE (T4) | Gemma 4 26B + Llama 3.1 8B via vLLM |
+| **Embeddings** | `bge-small-en-v1.5` | `multilingual-e5-large` |
+| **Chunking** | Fixed ~12-word splits | Semantic similarity breakpoints |
+| **Retrieval** | Dense only (ChromaDB) | Hybrid BM25 + Qdrant → RRF → Rerank |
+| **Deduplication** | None | MinHash (Jaccard ≥ 0.8) |
+| **Hallucination control** | Reranker score only | Confidence gate + NLI faithfulness |
+| **Model routing** | Single model | Cost-aware: fast ↔ powerful tier |
+| **Query caching** | None | Redis semantic cache (cosine sim ≥ 0.95) |
+| **Vector store** | In-memory ChromaDB | Qdrant (persisted Modal Volume) |
+
+> The original v1 `server.py` is preserved as-is and can be restored in one line of `vite.config.ts`.
+
+---
+
+## 🧭 v2 System Architecture
 
 ```mermaid
 graph TD
-    %% Frontend Subgraph
+    subgraph Client ["🖥️ React + Vite Frontend"]
+        A[Composer Input] -->|POST /api| B[Vite Proxy]
+        I[Doc Uploader] -->|POST /api/upload| B
+    end
+
+    subgraph Orchestrator ["⚡ RAG Orchestrator — Modal T4"]
+        B --> C{Semantic Cache?}
+        C -->|Hit ✅| Z["⚡ Return instantly (Redis)"]
+        C -->|Miss| D[Hybrid Retriever]
+
+        subgraph Retrieval ["🔍 Hybrid Retrieval Pipeline"]
+            D --> E[BM25 Sparse Search]
+            D --> F[Qdrant Dense Search]
+            E --> G[RRF Fusion k=60]
+            F --> G
+            G --> H[ms-marco Cross-Encoder Rerank]
+        end
+
+        H --> J{Confidence Gate}
+        J -->|score < 0.3| K["I don't know"]
+        J -->|score ≥ 0.3| L[Query Router]
+
+        subgraph Routing ["🧠 Cost-Aware Model Routing"]
+            L -->|Simple / high-conf| M["⚡ Llama 3.1 8B — A10G"]
+            L -->|Complex / low-conf| N["🧠 Gemma 4 26B — A100"]
+        end
+
+        M --> O{NLI Faithful?}
+        N --> O
+        O -->|Unfaithful + was Llama| N
+        O -->|Faithful ✅| P[Cache in Redis + Return]
+        O -->|Unfaithful + was Gemma| Q["Return with ⚠️ Verify badge"]
+    end
+
+    subgraph Storage ["💾 Persistent Storage (Modal Volumes)"]
+        R[ktgpt-rag-models] -->|Weights| M
+        R -->|Weights| N
+        S[ktgpt-qdrant-storage] -->|Vectors| F
+    end
+```
+
+---
+
+## 🧭 v1 Architecture (Legacy — server.py)
+
+The original pipeline is preserved for reference:
+
+```mermaid
+graph TD
     subgraph Client ["🖥️ React + Vite Frontend"]
         A[Composer Input] -->|1. Post Query| B[Vite Proxy /api]
         I[Doc Uploader] -->|Upload File| H[Upload Handler]
     end
 
-    %% Modal Subgraph
     subgraph Serverless ["⚡ Modal ASGI Server (T4 GPU)"]
         B -->|Route /| C{Retrieval Toggle?}
         H -->|Route /upload| J[PDF / MD / TXT Parser]
-        
-        %% Retrieval Pipeline
+
         subgraph RAG ["🔍 Two-Stage RAG Pipeline"]
             J -->|Plain Text| K[Short-Sentence Splitter]
-            K -->|~12-word Chunks| L[BAAI/bge-small-en-v1.5 Embedder]
-            L -->|Store Embeddings| M[In-Memory ChromaDB Collection]
-            
-            C -->|No Documents| N[No Context Prompt]
+            K -->|~12-word Chunks| L[bge-small-en-v1.5 Embedder]
+            L -->|Store Embeddings| M[In-Memory ChromaDB]
             C -->|Has Documents| O[Retrieve Top-10 Vectors]
             O -->|Embed Query| L
-            M -.->|Vector Matches| P[CrossEncoder ms-marco Reranker]
+            M -.->|Vector Matches| P[ms-marco CrossEncoder Reranker]
             P -->|Score & Select Best| Q[Trim to Max 12 Words]
         end
 
-        %% Web Search Pipeline
         subgraph WebSearch ["🌐 SerpAPI Web Grounder"]
             C -->|Web Search Enabled| D[SerpAPI Request]
             D -->|Scrape Snippets| E[Date-Cleaning Regex]
             E -->|Index On-The-Fly| L
         end
 
-        %% Model Inference Pipeline
         subgraph ModelInference ["🧠 KTGPT MoE Inference Engine"]
             Q -->|Context Inject| R[Prompt Builder]
-            N --> R
             R -->|Format Special Tokens| S[KTGPT bfloat16 Model]
             T[Modal Volume /vol] -->|Load Weights & Router Biases| S
             S -->|Low-Temperature Generation| U[Argmax Token Output]
         end
     end
 
-    %% Response Loop
     U -->|200 OK Response| V[Typewriter Streaming Effect]
     V -->|Render Chat| A
 ```
@@ -67,34 +125,39 @@ graph TD
 
 ## 🔥 Key Technical Highlights
 
-### 1. Custom Mixture of Experts (MoE) Architecture
-* **Expert Routing Biases:** Loads custom pre-trained expert router biases directly into the transformer layers from the serverless checkpoint.
-* **Low-Latency Inference:** Deployed in `torch.bfloat16` precision on an **NVIDIA T4 GPU** inside serverless container environments on Modal.
-* **Special Token Schemas:** Fully aligned with ChatML-inspired format tags:
-  ```text
-  <|system|>
-  You are KTGPT, a helpful assistant made by Mindrix.
-  ...
-  <|end|>
-  <|user|>
-  Context: [Retrieved Segment]
-  Question: [User Question]
-  <|end|>
-  <|assistant|>
-  [Model Response]
-  ```
+### v2: Production RAG System
 
-### 2. High-Precision Short-Context RAG (Phase 1.5 Calibrated)
-* **Short-Sentence Splitter:** Most RAG systems use large chunks (512+ tokens), which invite LLM hallucinations. KTGPT utilizes a custom text processing formula that splits files into sentences of **~10-15 words**.
-* **Precise 12-Word Constraint:** To ensure strict context-grounded exact copy-stop retrieval, retrieved segments are carefully trimmed to exactly **12 words** and ended with a clean punctuation boundary (`.!?`), aligning perfectly with KTGPT's grounding pre-training format.
+#### 1. Semantic Chunking (`chunker.py`)
+- Embeds every sentence with `multilingual-e5-large` and computes cosine similarity between consecutive sentences
+- Splits into new chunks at **similarity drop-off points** (threshold `0.5`) rather than fixed token counts
+- **MinHash deduplication** via `datasketch` removes near-duplicate chunks (Jaccard ≥ 0.8) before indexing — avoids bloating the vector store with boilerplate text
 
-### 3. Neural Double-Retrieval Pipeline
-* **Dense Retrieval:** Encodes the parsed document sentences on-the-fly using `BAAI/bge-small-en-v1.5` embeddings, inserting them into an in-memory `hnsw:space: cosine` ChromaDB collection.
-* **Cross-Encoder Reranking:** Computes semantic relevance scores for the top-10 retrieved vector matches against the user question using `cross-encoder/ms-marco-MiniLM-L-6-v2` to select the single absolute best grounding sentence.
+#### 2. Hybrid Retrieval with RRF (`retriever.py`)
+- **Dense:** `multilingual-e5-large` embeddings in **Qdrant** (persisted Modal Volume) with `"passage: "` / `"query: "` prefixes
+- **Sparse:** `rank_bm25` BM25Okapi in-memory index rebuilt incrementally as docs are uploaded
+- **RRF Fusion** (`k=60`): merges ranked lists by position — immune to cross-scale score normalization problems
+- **Cross-encoder reranking:** `ms-marco-MiniLM-L-6-v2` re-scores the top-20 fused results for final precision
 
-### 4. SerpAPI Web Grounder
-* When **Web Search** is activated, the server scrapes live organic Google Search results on-the-fly.
-* Cleans noisy metadata date-patterns (e.g., `Jan 12, 2026 ...`) utilizing robust regular expressions, splits and indexes them inside ChromaDB, and passes the most relevant search snippet as the grounding context.
+#### 3. Hallucination Control (`hallucination.py`)
+- **Confidence gate:** If the top reranker score is `< 0.3`, the server refuses to answer rather than hallucinating
+- **NLI faithfulness:** `cross-encoder/nli-deberta-v3-base` classifies whether the generated response is *entailed*, *neutral*, or *contradicted* by the retrieved context
+- **Escalation:** If the fast model's response is contradicted, the request is automatically re-run through the big model
+
+#### 4. Cost-Aware Routing (`router.py`)
+- Routes queries between two tiers based on query length, complexity keywords (`"compare"`, `"analyze"`, `"evaluate"`...), retrieval confidence, and chunk count
+- **Llama 3.1 8B** on A10G → simple/factual queries with high-confidence context
+- **Gemma 4 26B** on A100 → complex/analytical queries or low-confidence scenarios
+
+#### 5. Redis Semantic Cache (`cache.py`)
+- Embeds each query with `multilingual-e5-large` and computes cosine similarity against all cached query embeddings
+- Similarity ≥ `0.95` → cache hit → instant response, zero inference cost
+- **TTL**: 1 hour default. **LRU eviction** at 1,000 entries max
+
+### v1: Custom KTGPT MoE (preserved in `server.py`)
+- **Expert Routing Biases:** Custom pre-trained biases loaded into transformer layers at inference time
+- **Short-Context RAG:** ~12-word sentence-level chunks aligned with KTGPT's grounding pre-training format
+- **Cross-Encoder Reranking:** Top-10 ChromaDB results reranked with `ms-marco-MiniLM-L-6-v2`
+- **SerpAPI Web Grounder:** Live Google Search snippets indexed on-the-fly
 
 ---
 
@@ -103,112 +166,167 @@ graph TD
 ```text
 ktgpt_chat/
 ├── backend/
-│   └── server.py             # FastAPI app, ChromaDB Retriever, & Modal serverless config
+│   ├── rag_server.py         # [v2] Main orchestrator — Modal app, FastAPI routes
+│   ├── chunker.py            # [v2] Semantic chunking + MinHash dedup
+│   ├── retriever.py          # [v2] Hybrid BM25 + Qdrant + RRF + rerank
+│   ├── hallucination.py      # [v2] Confidence gate + NLI faithfulness
+│   ├── router.py             # [v2] Cost-aware Llama ↔ Gemma routing
+│   ├── cache.py              # [v2] Redis semantic query cache
+│   ├── models.py             # [v2] Pydantic API schemas
+│   ├── prompts.py            # [v2] Llama 3.1 + Gemma 4 prompt formatters
+│   ├── download_weights.py   # [v2] One-time Modal weight download script
+│   └── server.py             # [v1] Original KTGPT MoE server (preserved)
 ├── frontend/
 │   ├── src/
-│   │   ├── components/       # UI Elements (Composer, MessageBubble, Welcome)
+│   │   ├── components/
+│   │   │   ├── chat/
+│   │   │   │   ├── MessageBubble.tsx   # Model badge, confidence bar, cache/NLI indicators
+│   │   │   │   ├── Composer.tsx        # File upload, web search toggle
+│   │   │   │   └── Welcome.tsx         # Greeting + quick-start prompts
 │   │   ├── pages/
-│   │   │   └── Index.tsx     # Main chat application page and API bridge
-│   │   ├── lib/              # Theme, Typewriter utility, Types, & Mock handlers
-│   │   ├── index.css         # Styling system & custom dark/light theme tokens
-│   │   └── main.tsx          # React application root entry
-│   ├── vite.config.ts        # Vite configuration & development server proxy
-│   └── package.json          # Frontend packages & script definitions
-├── main.py                   # Root runner
-├── pyproject.toml            # Python backend dependencies
-└── README.md                 # Interactive Documentation
+│   │   │   └── Index.tsx       # Main chat page + API bridge
+│   │   ├── lib/
+│   │   │   ├── chatTypes.ts    # Message types (+ modelUsed, confidence, faithful, cached)
+│   │   │   ├── theme.ts        # Dark/light theme
+│   │   │   └── mockLlm.ts      # Typewriter streaming utility
+│   │   ├── index.css           # Design system & theme tokens
+│   │   └── main.tsx            # React entry
+│   ├── vite.config.ts          # Proxy → v2 rag_server (v1 URL commented)
+│   └── package.json
+├── pyproject.toml              # Python deps (v2)
+└── README.md
 ```
 
 ---
 
 ## 🔌 API Endpoint Specifications
 
-All endpoints are hosted dynamically under the ASGI serverless container on Modal.
+### v2 — RAG Server (`rag_server.py`)
 
-| Endpoint | Method | Description | Payload Schema | Response Schema |
+| Endpoint | Method | Description | Request | Response |
 | :--- | :--- | :--- | :--- | :--- |
-| `/` | `POST` | Core Chat & retrieval | `{"question": str, "context": str, "use_retrieval": bool, "use_web_search": bool}` | `{"response": str, "source": str}` |
-| `/upload` | `POST` | Index TXT, MD, or PDF | `Multipart Form: file` | `{"filename": str, "sentences": int, "status": "indexed"}` |
-| `/stats` | `GET` | Get ChromaDB volume size | *None* | `{"documents": int, "sentences": int}` |
-| `/clear` | `POST` | Purge vector store | *None* | `{"status": "cleared"}` |
+| `/` | `POST` | Full RAG pipeline chat | `{question, context?, use_retrieval?, use_web_search?}` | `{response, source, model_used, confidence, faithful, cached}` |
+| `/upload` | `POST` | Index document (TXT/MD/PDF) | `Multipart: file` | `{filename, chunks, status, dedup_removed}` |
+| `/stats` | `GET` | Index + cache statistics | — | `{documents, chunks, bm25_terms, cache_entries}` |
+| `/clear` | `POST` | Clear all indices + cache | — | `{status: "cleared"}` |
+| `/health` | `GET` | System health check | — | `{status, models_loaded, qdrant_connected, redis_connected}` |
+
+### v1 — KTGPT Server (`server.py`)
+
+| Endpoint | Method | Description | Payload | Response |
+| :--- | :--- | :--- | :--- | :--- |
+| `/` | `POST` | Chat with KTGPT MoE | `{question, context, use_retrieval, use_web_search}` | `{response, source}` |
+| `/upload` | `POST` | Index TXT, MD, or PDF | `Multipart Form: file` | `{filename, sentences, status}` |
+| `/stats` | `GET` | ChromaDB volume size | — | `{documents, sentences}` |
+| `/clear` | `POST` | Purge vector store | — | `{status: "cleared"}` |
 
 ---
 
 ## 🚀 Deployment & Installation Guide
 
-### 🛠️ Backend Deployment (Modal Serverless)
+### 🛠️ Backend — v2 RAG Server
 
-The backend runs entirely serverless, scaling up to dedicated **NVIDIA T4 GPUs** when active, and scale-to-zero when idle.
+#### Step 1: Pre-requisites
 
-#### 1. Pre-requisites & Secrets
-Make sure you have a [Modal account](https://modal.com) and the `modal` CLI installed and authenticated:
 ```bash
 pip install modal
 modal setup
 ```
 
-You must configure two Secrets in your Modal dashboard:
-* **`hf-secret`**: Containing your HuggingFace Token (if pulling restricted models).
-* **`serpapi`**: Containing your `SERPAPI_KEY` for live search groundings.
+#### Step 2: Create Modal Secrets
 
-#### 2. Run / Deploy
-Run the server interactively for testing:
+In your [Modal Secrets dashboard](https://modal.com/secrets):
+
+| Secret Name | Key | Value |
+| :--- | :--- | :--- |
+| `hf-secret` | `HF_TOKEN` | HuggingFace token (needs Gemma 4 + Llama 3.1 access) |
+| `serpapi` | `SERPAPI_KEY` | SerpAPI key for web search |
+| `redis-secret` | `REDIS_URL` | Upstash Redis URL (`rediss://...`) |
+
+#### Step 3: Download All Model Weights (one-time, ~45 min)
+
 ```bash
-modal run backend/server.py
+modal run backend/download_weights.py
 ```
-Or deploy it permanently as an ASGI endpoint:
+
+Downloads to the `ktgpt-rag-models` Modal Volume:
+- `google/gemma-4-26B-A4B-it` — ~50 GB → A100 GPU
+- `meta-llama/Llama-3.1-8B-Instruct` — ~16 GB → A10G GPU
+- `intfloat/multilingual-e5-large` — ~560 MB (embeddings)
+- `cross-encoder/ms-marco-MiniLM-L-6-v2` — ~67 MB (reranker)
+- `cross-encoder/nli-deberta-v3-base` — ~180 MB (faithfulness)
+
+#### Step 4: Deploy
+
 ```bash
+# Test interactively
+modal serve backend/rag_server.py
+
+# Deploy permanently
+modal deploy backend/rag_server.py
+```
+
+---
+
+### 🛠️ Backend — v1 KTGPT (Legacy)
+
+```bash
+# Requires hf-secret + serpapi secrets
+modal run backend/server.py
 modal deploy backend/server.py
 ```
 
 ---
 
-### 💻 Frontend Client Setup (Vite + React)
+### 💻 Frontend Client (Vite + React)
 
-The frontend is built on **React 18, Vite, Tailwind CSS, Lucide Icons, and shadcn/ui**.
+#### Install
 
-#### 1. Install Dependencies
-Navigate to the frontend directory and install the packages using `npm` or `bun`:
 ```bash
 cd frontend
-npm install
-# OR
-bun install
+npm install   # or: bun install
 ```
 
-#### 2. Configure Local Development Proxy
-Make sure your [vite.config.ts](file:///c:/Projects/ktgpt_chat/frontend/vite.config.ts) is forwarding `/api` calls to your live Modal deployment:
+#### Configure Proxy
+
+In `vite.config.ts`, the proxy target is already set to the v2 deployment URL. After deploying, update it with your actual Modal URL:
+
 ```typescript
-server: {
-  proxy: {
-    "/api": {
-      target: "YOUR_MODAL_APP_DEPLOYED_URL",
-      changeOrigin: true,
-      rewrite: (path) => path.replace(/^\/api/, ""),
-    },
+proxy: {
+  "/api": {
+    // v2 RAG Server
+    target: "https://<your-modal-user>--ktgpt-rag-server-ragserver-serve.modal.run",
+    // v1 KTGPT (legacy fallback)
+    // target: "https://<your-modal-user>--ktgpt-server-ktgptserver-serve-dev.modal.run",
+    changeOrigin: true,
+    rewrite: (path) => path.replace(/^\/api/, ""),
   },
-}
+},
 ```
 
-#### 3. Spin Up Development Server
+#### Run
+
 ```bash
-npm run dev
-# OR
-bun dev
+npm run dev   # or: bun dev
 ```
-Open your browser to `http://localhost:5173` and start chatting!
+
+Open `http://localhost:8080` and start chatting.
 
 ---
 
-## 🎨 Interactive Interface Overview
+## 🎨 Interface Overview
 
-| Feature | Description | Screen Element |
+| Feature | Description | Element |
 | :--- | :--- | :--- |
-| **💡 Quick-Start Prompts** | Instant prompts to test the grounding quality on-the-fly. | Welcome Screen |
-| **📁 Drag-and-Drop Indexer** | Drag and drop any TXT, MD, or PDF. Indexes sentences in <150ms. | Composer / Welcome |
-| **🌐 Web-Search Grounder** | Toggle on-the-fly Google Search integrations. | Composer Toggle |
-| **🌓 Ergonomic Themes** | One-click transitions between Sleek Dark Mode and Vibrant Light Mode. | Header Toggle |
+| **⚡ / 🧠 Model Badge** | Shows whether Llama 3.1 8B or Gemma 4 26B handled the query | Message metadata row |
+| **▓▓▒░ Confidence Bar** | Retrieval reranker confidence (0–100%) | Message metadata row |
+| **🔖 Cached** | Response served from Redis semantic cache | Message metadata row |
+| **⚠️ Verify** | NLI check flagged a possible faithfulness issue | Message metadata row |
+| **💡 Quick-Start Prompts** | Instant prompts to test grounding quality | Welcome Screen |
+| **📁 File Indexer** | Upload any TXT, MD, or PDF — indexed with semantic chunking | Composer |
+| **🌐 Web-Search Grounder** | Toggle live Google Search context via SerpAPI | Composer Toggle |
+| **🌓 Theme Toggle** | One-click dark / light mode | Header |
 
 ---
 
- Empowering context-grounded AI intelligence.
+ Empowering context-grounded AI intelligence — from demo to production.

@@ -4,7 +4,8 @@ import { cn } from "@/lib/utils";
 
 interface UploadedDoc {
   filename: string;
-  sentences: number;
+  chunks: number;
+  dedup_removed?: number;
 }
 
 interface ComposerProps {
@@ -73,7 +74,7 @@ export const Composer = ({
       if (!res.ok) throw new Error("Upload failed");
 
       const data = await res.json();
-      onFileUpload({ filename: data.filename, sentences: data.sentences });
+      onFileUpload({ filename: data.filename, chunks: data.chunks, dedup_removed: data.dedup_removed });
     } catch (err) {
       console.error("Upload error:", err);
     } finally {
@@ -94,7 +95,7 @@ export const Composer = ({
             >
               <FileText className="h-3 w-3" />
               {doc.filename}
-              <span className="text-primary/60">({doc.sentences} chunks)</span>
+              <span className="text-primary/60">({doc.chunks} chunks{doc.dedup_removed ? `, ${doc.dedup_removed} dupes removed` : ""})</span>
             </span>
           ))}
         </div>
@@ -175,7 +176,7 @@ export const Composer = ({
           </div>
           <div className="flex items-center gap-2">
             <span className="hidden sm:inline text-[11px] text-muted-foreground/70 font-mono">
-              KT GPT v1
+              KT GPT v2
             </span>
             <button
               type="button"

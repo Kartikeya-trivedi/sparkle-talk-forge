@@ -5,7 +5,11 @@ export interface Message {
   role: Role;
   content: string;
   createdAt: number;
-  source?: string;  // retrieved context chunk used (if any)
+  source?: string;       // retrieved context chunk used (if any)
+  modelUsed?: string;    // "llama-3.1-8b" | "gemma-4-26b"
+  confidence?: number;   // retrieval confidence score (0-1)
+  faithful?: boolean;    // NLI faithfulness check result
+  cached?: boolean;      // was this a cache hit?
 }
 
 export interface Conversation {

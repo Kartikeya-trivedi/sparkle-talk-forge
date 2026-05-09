@@ -4,12 +4,13 @@ import { Welcome } from "@/components/chat/Welcome";
 import { MessageBubble } from "@/components/chat/MessageBubble";
 import { Composer } from "@/components/chat/Composer";
 import { type Conversation, type Message, newId, titleFromMessage } from "@/lib/chatTypes";
-import { getMockResponse, streamMockResponse } from "@/lib/mockLlm";
+import { streamMockResponse } from "@/lib/mockLlm";
 import { useTheme } from "@/lib/theme";
 
 interface UploadedDoc {
   filename: string;
-  sentences: number;
+  chunks: number;
+  dedup_removed?: number;
 }
 
 const Index = () => {
@@ -31,7 +32,6 @@ const Index = () => {
     setStreaming(false);
     setConversation(null);
     setUploadedDocs([]);
-    // Clear docs on the server too
     fetch("/api/clear", { method: "POST" }).catch(() => {});
   };
 
@@ -65,17 +65,32 @@ const Index = () => {
       const res = await fetch("/api", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ context: "", question: text, use_web_search: !!webSearch }),
+        body: JSON.stringify({
+          context: "",
+          question: text,
+          use_retrieval: true,
+          use_web_search: !!webSearch,
+        }),
         signal: ctrl.signal,
       });
 
-      if (!res.ok) throw new Error("Failed to fetch response");
-      
-      const data = await res.json();
-      const realResponseText = data.response || "No response received.";
+      if (!res.ok) throw new Error(`API error: ${res.status}`);
 
+      const data = await res.json();
+      const responseText = data.response || "No response received.";
+
+      // Extract RAG metadata from response
+      const ragMeta = {
+        modelUsed: data.model_used || "",
+        confidence: typeof data.confidence === "number" ? data.confidence : undefined,
+        faithful: typeof data.faithful === "boolean" ? data.faithful : undefined,
+        cached: !!data.cached,
+        source: data.source || "",
+      };
+
+      // Stream the text character-by-character for typewriter effect
       await streamMockResponse(
-        realResponseText,
+        responseText,
         (chunk) => {
           setConversation((prev) => {
             if (!prev) return prev;
@@ -89,13 +104,31 @@ const Index = () => {
         },
         ctrl.signal
       );
+
+      // Once streaming is done, attach metadata to the final message
+      setConversation((prev) => {
+        if (!prev) return prev;
+        const msgs = prev.messages.slice();
+        const last = msgs[msgs.length - 1];
+        if (last?.role === "assistant") {
+          msgs[msgs.length - 1] = {
+            ...last,
+            ...ragMeta,
+          };
+        }
+        return { ...prev, messages: msgs };
+      });
+
     } catch (error: any) {
       if (error.name !== "AbortError") {
         console.error("Inference Error:", error);
         setConversation((prev) => {
           if (!prev) return prev;
           const msgs = prev.messages.slice();
-          msgs[msgs.length - 1] = { ...msgs[msgs.length - 1], content: "⚠️ Sorry, there was an error connecting to the model." };
+          msgs[msgs.length - 1] = {
+            ...msgs[msgs.length - 1],
+            content: "⚠️ Sorry, there was an error connecting to the model.",
+          };
           return { ...prev, messages: msgs };
         });
       }
@@ -117,7 +150,7 @@ const Index = () => {
               <span className="font-serif text-[15px] font-semibold tracking-tight">KT GPT</span>
             </div>
             <button className="flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm font-medium hover:bg-muted transition-colors">
-              <span className="font-serif">KT GPT v1</span>
+              <span className="font-serif">KT GPT v2</span>
               <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
             </button>
           </div>
@@ -137,7 +170,7 @@ const Index = () => {
               {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
             </button>
             <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/15 ring-1 ring-primary/25">
-              <span className="text-xs font-semibold text-primary">YO</span>
+              <span className="text-xs font-semibold text-primary">KT</span>
             </div>
           </div>
         </header>

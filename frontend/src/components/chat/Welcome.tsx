@@ -4,7 +4,8 @@ import { Composer } from "./Composer";
 
 interface UploadedDoc {
   filename: string;
-  sentences: number;
+  chunks: number;
+  dedup_removed?: number;
 }
 
 interface WelcomeProps {
